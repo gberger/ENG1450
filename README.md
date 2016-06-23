@@ -1,2 +1,5 @@
-# ENG1450
-:mortar_board: Microcontrollers &amp; Embedded Systems course at PUC-Rio.
+# ENG1450 - Microcontrollers & Embedded Systems
+
+**2016.1**
+
+Labs and Projects for the Microcontrollers & Embedded Systems course at PUC-Rio
