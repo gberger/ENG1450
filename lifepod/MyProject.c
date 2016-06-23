@@ -105,38 +105,8 @@ char rfid_enabled = 1;
 /* Estado
  ****************/
 
+// state -- ver defines abaixo
 char state = 0;
-
-long tmp_input;
-char tmp_toggle = '$';
-
-int current_casa = 0;
-long casas_precos[3] = {200000, 500000, 1000000};
-char casas_nomes[3] = {'P', 'M', 'G'};
-
-int current_carro = 0;
-long carros_precos[2] = {10000, 50000};
-char *carros_nomes = {"Econ", "Luxo"};
-
-int total_anos;
-char num_jogadores = 0;
-int current_player = -1;
-int girou = 0;
-long val_lottery = 0;
-
-long saldos[4] = {0, 0, 0, 0};
-long pontos[4] = {0, 0, 0, 0};
-long salarios[4] = {5000, 5000, 5000, 5000};
-char casados[4] = {0, 0, 0, 0};
-char bebes[4] = {0, 0, 0, 0};
-char carros[2][4] = {{0,0,0,0}, {0,0,0,0}};
-char casas[3][4] = {{0,0,0,0}, {0,0,0,0}, {0,0,0,0}};
-
-#define CASAS_PEQ casas[0]
-#define CASAS_MED casas[1]
-#define CASAS_GRA casas[2]
-#define CARROS_ECON carros[0]
-#define CARROS_LUXO carros[1]
 
 #define ST_INIT        0
 #define ST_SET_YEARS   1
@@ -151,6 +121,44 @@ char casas[3][4] = {{0,0,0,0}, {0,0,0,0}, {0,0,0,0}};
 #define ST_ADD_SUB     10
 #define ST_SALARY      11
 #define ST_LOTTERY     12
+
+
+// variaveis internas
+long tmp_input;
+char tmp_toggle = '$';
+
+int current_casa = 0;
+long casas_precos[3] = {200000, 500000, 1000000};
+char casas_nomes[3] = {'P', 'M', 'G'};
+
+int current_carro = 0;
+long carros_precos[2] = {10000, 50000};
+char *carros_nomes = {"Econ", "Luxo"};
+
+int current_bebes = 0;
+
+long val_lottery = 0;
+
+
+// Estado do jogo
+int total_anos;
+char num_jogadores = 0;
+int girou = 0;
+int current_player = -1;
+
+long saldos[4] = {0, 0, 0, 0};
+long pontos[4] = {0, 0, 0, 0};
+long salarios[4] = {5000, 5000, 5000, 5000};
+char casados[4] = {0, 0, 0, 0};
+char bebes[4] = {0, 0, 0, 0};
+char carros[2][4] = {{0,0,0,0}, {0,0,0,0}};
+char casas[3][4] = {{0,0,0,0}, {0,0,0,0}, {0,0,0,0}};
+
+#define CASAS_PEQ casas[0]
+#define CASAS_MED casas[1]
+#define CASAS_GRA casas[2]
+#define CARROS_ECON carros[0]
+#define CARROS_LUXO carros[1]
 
 
 /* Mostradores
@@ -177,6 +185,10 @@ void mostra_preco_carro() {
                  carros_nomes[current_carro],
                  carros[current_carro][current_player] ? '+' : '-',
                  carros_precos[current_carro]);
+}
+
+void mostra_bebes() {
+  sprintf(disp, "# bebes: %d", current_bebes);
 }
 
 
@@ -343,6 +355,8 @@ void GotKey(char key) {
       state = ST_CAR;
     }
     else if (key == BABY) {
+      current_bebes = 0;
+      mostra_bebes();
       state = ST_BABY;
     }
     else if (key == TOGGLE_SLP || key == TOGGLE_MM) {
@@ -408,7 +422,17 @@ void GotKey(char key) {
   }
 
   else if (state == ST_BABY) {
-    if (key == UNDO) {
+    if (key == TOGGLE_MM || key == NEXT) {
+      current_bebes++;
+      current_bebes %= 3;
+      mostra_bebes();
+    }
+    else if (key == ENTER) {
+      bebes[current_player] += current_bebes;
+      current_bebes = 0;
+      state = ST_TURN;
+    }
+    else if (key == UNDO) {
       state = ST_TURN;
     }
   }
