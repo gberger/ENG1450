@@ -121,6 +121,7 @@ char state = 0;
 #define ST_ADD_SUB     10
 #define ST_SALARY      11
 #define ST_LOTTERY     12
+#define ST_END         13
 
 #define GO_STATE(S) state = S; StartState();
 
@@ -144,13 +145,16 @@ long val_lottery = 0;
 
 // Estado do jogo
 int total_anos;
+int ano_atual = 0;
 char num_jogadores = 0;
-int girou = 0;
+char girou[4] = {0, 0, 0, 0};
 int current_player = -1;
+int winner;
+long ratio_lp_money;
 
 long saldos[4] = {0, 0, 0, 0};
 long pontos[4] = {0, 0, 0, 0};
-long salarios[4] = {123456, 5000, 5000, 5000};
+long salarios[4] = {5000, 5000, 5000, 5000};
 char casados[4] = {0, 0, 0, 0};
 char bebes[4] = {0, 0, 0, 0};
 char carros[2][4] = {{0,0,0,0}, {0,0,0,0}};
@@ -209,7 +213,7 @@ void mostra_bebes() {
 
 int gira_roleta(int bias) {
   int resultado = rand_interval(1, 10);
-  resultado = max(resultado+bias, 10);
+  resultado = min(resultado+bias, 10);
 
   // mostrar girando no display
 
@@ -288,6 +292,15 @@ void casar(int n) {
   casados[current_player] = 1;
 }
 
+long calculate_points(int n) {
+
+}
+
+int calculate_winner() {
+
+
+}
+
 /* Interações
  ****************/
  
@@ -320,9 +333,14 @@ void StartState() {
   } 
   else if (state == ST_SALARY) {
     tmp_input = 0;
+    strcpy(disp1, "Digite salario");
   }
   else if (state == ST_LOTTERY) {
     gira_roleta(0);
+  }
+  else if (state == ST_END) {
+    winner = calculate_winner();
+    strcpy(disp1, "WIN %d LP%lld", winner+1, pontos[winner]));
   }
 }
 
@@ -332,14 +350,15 @@ void GotCard(int card) {
   disp2[2] = card + '0';
 
   if (state == ST_BEFORE_GAME) {
-    current_player = card;
-    girou = 0;
-    GO_STATE(ST_TURN);
+    if (card == 0) {
+      current_player = card;
+      ano_atual++;
+      GO_STATE(ST_TURN);
+    }
   }
 
   else if (state == ST_TURN) {
     current_player = card;
-    girou = 0;
     GO_STATE(ST_TURN);
   }
 
@@ -364,7 +383,7 @@ void GotKey(char key) {
   else if (state == ST_SET_YEARS) {
     if (IS_NUMERIC(key)) {
       APPEND(tmp_input, NUMERIC_VAL(key));
-      LongToStr(tmp_input, disp1);
+      sprintf(disp1, "Anos: %lld", tmp_input);
     } else if (key == ENTER) {
       total_anos = tmp_input;
       GO_STATE(ST_BEFORE_GAME);
@@ -372,11 +391,21 @@ void GotKey(char key) {
   }
 
   else if (state == ST_TURN) {
-    if (key == SPIN && !girou) {
-      t = turno(current_player);
-      girou = 1;
-      mostra_stats(current_player);
-      disp2[15] = t + '0';
+    if (key == SPIN) {
+      if (girou[0] && (girou[1] || girou[2] || girou[3]) && current_player == 0) {
+        // muda de ano
+        ano_atual++;
+        girou[0] = girou[1] = girou[2] = girou[3] = 0;
+      }
+      if (ano_atual >= total_anos) {
+        GO_STATE(ST_END);
+      } else if (!girou[current_player]) {
+        // pode girar
+        girou[current_player] = 1;
+        t = turno(current_player);
+        mostra_stats(current_player);
+        disp2[15] = t + '0';
+      }
     }
     else if (key == CHANCE) {
       t = gira_chance();
@@ -425,7 +454,7 @@ void GotKey(char key) {
       int mult = casas[current_casa][current_player] ? 1 : -1;
       long preco = casas_precos[current_casa];
       long delta = mult * preco;
-      MUDA_S(saldos[n], saldos[n] + delta);
+      MUDA_S(saldos[current_player], saldos[current_player] + delta);
       casas[current_casa][current_player] = !casas[current_casa][current_player];
       GO_STATE(ST_TURN);
     }
@@ -444,7 +473,7 @@ void GotKey(char key) {
       int mult = carros[current_carro][current_player] ? 1 : -1;
       long preco = carros_precos[current_carro];
       long delta = mult * preco;
-      MUDA_S(saldos[n], saldos[n] + delta);
+      MUDA_S(saldos[current_player], saldos[current_player] + delta);
       carros[current_carro][current_player] = !carros[current_carro][current_player];
       GO_STATE(ST_TURN);
     }
@@ -495,6 +524,7 @@ void GotKey(char key) {
   else if (state == ST_SALARY) {
     if (IS_NUMERIC(key)) {
       APPEND(tmp_input, NUMERIC_VAL(key));
+      sprintf(disp1, "Sal. $%lld", tmp_input);
     }
     else if (key == ENTER) {
       salarios[current_player] = tmp_input;
@@ -525,6 +555,8 @@ void main() {
   unsigned TagType;
   char msg[12];
   char UID[6];
+
+  ratio_lp_money = rand_interval(80, 120);
 
   ADCON1 = 0X06;
 
@@ -574,7 +606,7 @@ void main() {
 
     disp2[1] = state + '0';
     
-    disp2[10] = sizeof(long) + '0';
+    disp2[10] = ano_atual + '0';
 
     Lcd_Cmd(_LCD_CLEAR);
     Lcd_Out(1, 1, disp1);
