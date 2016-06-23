@@ -114,6 +114,10 @@ int current_casa = 0;
 long casas_precos[3] = {200000, 500000, 1000000};
 char casas_nomes[3] = {'P', 'M', 'G'};
 
+int current_carro = 0;
+long carros_precos[2] = {10000, 50000};
+char *carros_nomes = {"Econ", "Luxo"};
+
 int total_anos;
 char num_jogadores = 0;
 int current_player = -1;
@@ -165,6 +169,14 @@ void mostra_preco_casa() {
                  casas_nomes[current_casa],
                  casas[current_casa][current_player] ? '+' : '-',
                  casas_precos[current_casa]);
+}
+
+
+void mostra_preco_carro() {
+  sprintf(disp1, "%s: %c$%ld",
+                 carros_nomes[current_carro],
+                 carros[current_carro][current_player] ? '+' : '-',
+                 carros_precos[current_carro]);
 }
 
 
@@ -326,6 +338,8 @@ void GotKey(char key) {
       state = ST_HOUSE;
     }
     else if (key == CAR) {
+      current_carro = 0;
+      mostra_preco_carro();
       state = ST_CAR;
     }
     else if (key == BABY) {
@@ -356,7 +370,7 @@ void GotKey(char key) {
   }
 
   else if (state == ST_HOUSE) {
-    if(key == NEXT) {
+    if (key == NEXT) {
       current_casa++;
       current_casa %= 3;
       mostra_preco_casa();
@@ -375,7 +389,20 @@ void GotKey(char key) {
   }
 
   else if (state == ST_CAR) {
-    if (key == UNDO) {
+    if (key == NEXT) {
+      current_carro++;
+      current_carro %= 2;
+      mostra_preco_carro();
+    }
+    else if (key == ENTER) {
+      int mult = carros[current_carro][current_player] ? 1 : -1;
+      long preco = carros_precos[current_carro];
+      long delta = mult * preco;
+      MUDA_S(saldos[n], saldos[n] + delta);
+      carros[current_carro][current_player] = !carros[current_carro][current_player];
+      state = ST_TURN;
+    }
+    else if (key == UNDO) {
       state = ST_TURN;
     }
   }
