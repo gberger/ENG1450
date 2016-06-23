@@ -42,8 +42,8 @@ sbit LCD_D6_Direction at TRISD2_bit;
 sbit LCD_D5_Direction at TRISD1_bit;
 sbit LCD_D4_Direction at TRISD0_bit;
 
-char disp1[17] = "Inicializando   ";
-char disp2[17] = "1234567890ABCDEF";
+char disp1[17] = "Inicializando...";
+char disp2[17] = "                ";
 
 
 /* Teclado
@@ -51,8 +51,7 @@ char disp2[17] = "1234567890ABCDEF";
  
 char tecla = 'x';
 char teclaTemp;
-
-char key[6] = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
+char tratou_key = 0;
 
 #define DISABLE_KB() INTCON.INT0IE = 0
 #define ENABLE_KB()  INTCON.INT0IE = 1
@@ -73,6 +72,8 @@ char key[6] = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
 #define TOGGLE_MM  '#'
 #define IS_NUMERIC(key) (key >= '0' && key <= '9')
 #define NUMERIC_VAL(key) (key - '0')
+
+
 #define APPEND(num, digit) (num = num*10 + digit)
 
 
@@ -106,8 +107,12 @@ char rfid_enabled = 1;
 
 char state = 0;
 
-int tmp_input;
+long tmp_input;
 char tmp_toggle = '$';
+
+int current_casa = 0;
+long casas_precos[3] = {200000, 500000, 1000000};
+char casas_nomes[3] = {'P', 'M', 'G'};
 
 int total_anos;
 char num_jogadores = 0;
@@ -120,11 +125,14 @@ long pontos[4] = {0, 0, 0, 0};
 long salarios[4] = {5000, 5000, 5000, 5000};
 char casados[4] = {0, 0, 0, 0};
 char bebes[4] = {0, 0, 0, 0};
-char carros_econ[4] = {0, 0, 0, 0};
-char carros_luxo[4] = {0, 0, 0, 0};
-char casas_peq[4] = {0, 0, 0, 0};
-char casas_med[4] = {0, 0, 0, 0};
-char casas_gra[4] = {0, 0, 0, 0};
+char carros[2][4] = {{0,0,0,0}, {0,0,0,0}};
+char casas[3][4] = {{0,0,0,0}, {0,0,0,0}, {0,0,0,0}};
+
+#define CASAS_PEQ casas[0]
+#define CASAS_MED casas[1]
+#define CASAS_GRA casas[2]
+#define CARROS_ECON carros[0]
+#define CARROS_LUXO carros[1]
 
 #define ST_INIT        0
 #define ST_SET_YEARS   1
@@ -144,29 +152,20 @@ char casas_gra[4] = {0, 0, 0, 0};
 /* Mostradores
  ****************/
 
-void mostra_subindo(long inicial, long final) {
-
-}
-
-void mostra_S(long valor) {
-
-}
-
-void mostra_subindo_S(long inicial, long final) {
-
-}
-
-void mostra_LP(long valor) {
-
-}
-
-void mostra_subindo_LP(long inicial, long final) {
-
-}
-
 int __muda_tmp;
-#define MUDA_S(antigo, novo)  __muda_tmp = (novo); mostra_subindo_S(antigo, __muda_tmp);  antigo = __muda_tmp;
-#define MUDA_LP(antigo, novo) __muda_tmp = (novo); mostra_subindo_LP(antigo, __muda_tmp); antigo = __muda_tmp;
+#define MUDA_S(antigo, novo)  antigo = (novo);
+#define MUDA_LP(antigo, novo) antigo = (novo);
+
+void mostra_stats(int n) {
+  sprintf(disp1, "$%ld   @%ld", saldos[n], pontos[n]);
+}
+
+void mostra_preco_casa() {
+  sprintf(disp1, "%c: %c$%ld",
+                 casas_nomes[current_casa],
+                 casas[current_casa][current_player] ? '+' : '-',
+                 casas_precos[current_casa]);
+}
 
 
 /* Giradores
@@ -193,7 +192,7 @@ int gira_chance() {
 /* Jogabilidade
  ****************/
 
-void turno(int n) {
+int turno(int n) {
   // Subtrai $ juros
   if (saldos[n] < 0) {
     MUDA_S(saldos[n], saldos[n] * 1.1);
@@ -215,26 +214,26 @@ void turno(int n) {
   }
   
   // Soma LP casa
-  if (casas_peq[n] || casas_med[n] || casas_gra[n]) {
-    MUDA_LP(pontos[n], pontos[n] + 100*(casas_peq[n]+casas_med[n]+casas_gra[n]));
+  if (CASAS_PEQ[n] || CASAS_MED[n] || CASAS_GRA[n]) {
+    MUDA_LP(pontos[n], pontos[n] + 100*(CASAS_PEQ[n]+CASAS_MED[n]+CASAS_GRA[n]));
   }
 
   // Soma LP carro_econ
   // Subtrai $ carro_econ
-  if (carros_econ[n] > 0) {
+  if (CARROS_ECON[n] > 0) {
     MUDA_LP(pontos[n], pontos[n] + 100);
-    MUDA_S(saldos[n], saldos[n] - 1000 * carros_econ[n]);
+    MUDA_S(saldos[n], saldos[n] - 1000 * CARROS_ECON[n]);
   }
   
   // Soma LP carro_luxo
   // Subtrai $ carro_luxo
-  if (carros_luxo[n] > 0) {
-    MUDA_LP(pontos[n], pontos[n] + 200 * carros_luxo[n]);
-    MUDA_S(saldos[n], saldos[n] - 5000 * carros_luxo[n]);
+  if (CARROS_LUXO[n] > 0) {
+    MUDA_LP(pontos[n], pontos[n] + 200);
+    MUDA_S(saldos[n], saldos[n] - 5000 * CARROS_LUXO[n]);
   }
   
   // Gira a roleta
-  gira_roleta((carros_econ[n] ? 1 : 0) + (carros_luxo[n] ? 2 : 0));
+  return gira_roleta((CARROS_ECON[n] ? 1 : 0) + (CARROS_LUXO[n] ? 2 : 0));
 }
 
 void casar(int n) {
@@ -256,18 +255,22 @@ void casar(int n) {
 /* Interações
  ****************/
  
+
 void GotCard(int card) {
   // card: 0-3
+  disp2[2] = card + '0';
 
   if (state == ST_BEFORE_GAME) {
     current_player = card;
     girou = 0;
+    mostra_stats(current_player);
     state = ST_TURN;
   }
   
   else if (state == ST_TURN) {
     current_player = card;
     girou = 0;
+    mostra_stats(current_player);
     state = ST_TURN;
   }
   
@@ -275,32 +278,41 @@ void GotCard(int card) {
     //MUDA_S(saldos[card], saldos[card] + val_lottery);
     saldos[card] += val_lottery;
     val_lottery = 0;
+    mostra_stats(card);
     state = ST_TURN;
   }
 }
 
 void GotKey(char key) {
+  int t;
   // key: '0'- '9', 'A'-'D', '*', '#'
+  disp2[0] = key;
 
   if (state == ST_INIT) {
     if (key == YEARS) {
       tmp_input = 0;
       state = ST_SET_YEARS;
+      strcpy(disp1, "Digite anos: ");
     }
   }
   
   else if (state == ST_SET_YEARS) {
     if (IS_NUMERIC(key)) {
       APPEND(tmp_input, NUMERIC_VAL(key));
+      LongToStr(tmp_input, disp1);
     } else if (key == ENTER) {
       total_anos = tmp_input;
+      strcpy(disp1, "O jogo comecou!");
       state = ST_BEFORE_GAME;
     }
   }
   
   else if (state == ST_TURN) {
     if (key == SPIN && !girou) {
-      turno(current_player);
+      t = turno(current_player);
+      girou = 1;
+      mostra_stats(current_player);
+      disp1[15] = t + '0';
     }
     else if (key == CHANCE) {
       gira_chance();
@@ -309,6 +321,8 @@ void GotKey(char key) {
       state = ST_MARRIAGE;
     }
     else if (key == HOUSE) {
+      current_casa = 0;
+      mostra_preco_casa();
       state = ST_HOUSE;
     }
     else if (key == CAR) {
@@ -342,7 +356,20 @@ void GotKey(char key) {
   }
 
   else if (state == ST_HOUSE) {
-    if (key == UNDO) {
+    if(key == NEXT) {
+      current_casa++;
+      current_casa %= 3;
+      mostra_preco_casa();
+    }
+    else if (key == ENTER) {
+      int mult = casas[current_casa][current_player] ? 1 : -1;
+      long preco = casas_precos[current_casa];
+      long delta = mult * preco;
+      MUDA_S(saldos[n], saldos[n] + delta);
+      casas[current_casa][current_player] = !casas[current_casa][current_player];
+      state = ST_TURN;
+    }
+    else if (key == UNDO) {
       state = ST_TURN;
     }
   }
@@ -441,9 +468,11 @@ void main() {
   MFRC522_Init();
 
   do {
-    Lcd_Cmd(_LCD_CLEAR);
-    Lcd_Chr(2, 1, tecla);
-    
+    if(!tratou_key) {
+      tratou_key = 1;
+      GotKey(tecla);
+    }
+  
     if (rfid_enabled) {
       if (MFRC522_isCard(&TagType)) {
         if (MFRC522_ReadCardSerial(&UID)) {
@@ -460,6 +489,8 @@ void main() {
       }
     }
     
+    disp2[1] = state + '0';
+
     Lcd_Cmd(_LCD_CLEAR);
     Lcd_Out(1, 1, disp1);
     Lcd_Out(2, 1, disp2);
@@ -531,9 +562,10 @@ void interrupt() {
     }
     PORTC.F0 = PORTC.F1 = PORTC.F2 = PORTC.F3 = 1;
     
-    GotKey(tecla);
+    tratou_key = 0;
 
     // clear flag
     ENABLE_KB();
     INTCON.INT0IF = 0;
   }
+}
