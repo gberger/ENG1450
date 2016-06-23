@@ -339,9 +339,11 @@ void GotKey(char key) {
       disp1[15] = t + '0';
     }
     else if (key == CHANCE) {
-      gira_chance();
+      t = gira_chance();
+      sprintf(disp1, "Sorteio: %d", t);
     }
     else if (key == MARRIAGE && !casados[current_player]) {
+      strcpy(disp1, "Casamento?");
       state = ST_MARRIAGE;
     }
     else if (key == HOUSE) {
@@ -475,7 +477,7 @@ void GotKey(char key) {
   
   else if (state == ST_LOTTERY) {
     if (key == LOTTERY) {
-      gira_roleta(0);
+      t = gira_roleta(0);
     }
     else if (key == UNDO) {
       state = ST_TURN;
