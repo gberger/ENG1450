@@ -344,12 +344,55 @@ void casar(int n) {
 }
 
 long calculate_points(int n) {
+  long delta;
 
+  // vende casas
+  if (CASAS_PEQ[n]) {
+    CASAS_PEQ[n] = 0;
+    MUDA_S(saldos[n], saldos[n] + casas_precos[0]);
+  }
+  if (CASAS_MED[n]) {
+    CASAS_MED[n] = 0;
+    MUDA_S(saldos[n], saldos[n] + casas_precos[1]);
+  }
+  if (CASAS_GRA[n]) {
+    CASAS_GRA[n] = 0;
+    MUDA_S(saldos[n], saldos[n] + casas_precos[2]);
+  }
+  
+  // vende carros
+  if (CARROS_ECON[n]) {
+    CARROS_ECON[n] = 0;
+    MUDA_S(saldos[n], saldos[n] + carros_precos[0]);
+  }
+  if (CARROS_LUXO[n]) {
+    CARROS_LUXO[n] = 0;
+    MUDA_S(saldos[n], saldos[n] + carros_precos[1]);
+  }
+
+  // dinheiro vira LP
+  delta = saldos[n]/ratio_lp_money;
+  MUDA_S(saldos[n], 0);
+  MUDA_LP(pontos[n], pontos[n] + delta);
 }
 
 int calculate_winner() {
-
-
+  int i, imax;
+  long max = 0;
+  
+  // calcula pts de cada jogador
+  for (i = 0; i < 4; i++) {
+    calculate_points(i);
+  }
+                                ]
+  // acha ganhador
+  for (i = 0; i < 4; i++) {
+    if(pontos[i] > max) {
+      max = pontos[i];
+      imax = i;
+    }
+  }
+  return imax;
 }
 
 /* Interações
@@ -407,6 +450,7 @@ void StartState() {
     sprintf(disp2, "Valor: $%lld", val_lottery);
   }
   else if (state == ST_END) {
+    calculate_points(rand_interval(1, ));
     winner = calculate_winner();
     sprintf(disp1, "GANHADOR %d", winner+1);
     sprintf(disp2, "LP %lld", pontos[winner]);
