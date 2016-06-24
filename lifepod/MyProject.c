@@ -52,6 +52,7 @@ char disp2[17] = "                ";
 char tecla = 'x';
 char teclaTemp;
 char tratou_key = 0;
+long t_tecla = 0;
 
 #define DISABLE_KB() INTCON.INT0IE = 0
 #define ENABLE_KB()  INTCON.INT0IE = 1
@@ -219,7 +220,7 @@ void mostra_preco_carro() {
                  carros_nomes[current_carro],
                  carros_precos[current_carro]);
   }
-  
+
   if (CARROS_ECON[current_player] == 0 && CARROS_LUXO[current_player] == 0) {
     sprintf(disp2, "Possui: NENHUM");
   } else if (CARROS_ECON[current_player] == 1 && CARROS_LUXO[current_player] == 0) {
@@ -338,7 +339,7 @@ void casar(int n) {
 
   // Muda variavel
   casados[current_player] = 1;
-  
+
   // Ganha 3000 LP
   MUDA_LP(pontos[current_player], pontos[current_player]+3000);
 }
@@ -359,7 +360,7 @@ long calculate_points(int n) {
     CASAS_GRA[n] = 0;
     MUDA_S(saldos[n], saldos[n] + casas_precos[2]);
   }
-  
+
   // vende carros
   if (CARROS_ECON[n]) {
     CARROS_ECON[n] = 0;
@@ -379,12 +380,12 @@ long calculate_points(int n) {
 int calculate_winner() {
   int i, imax;
   long max = 0;
-  
+
   // calcula pts de cada jogador
   for (i = 0; i < 4; i++) {
     calculate_points(i);
   }
-                                ]
+  
   // acha ganhador
   for (i = 0; i < 4; i++) {
     if(pontos[i] > max) {
@@ -397,12 +398,12 @@ int calculate_winner() {
 
 /* Interações
  ****************/
- 
+
 void StartState() {
   if (state == ST_SET_YEARS) {
     tmp_input = 0;
     strcpy(disp1, "Digite anos: ");
-  } 
+  }
   else if (state == ST_BEFORE_GAME) {
     strcpy(disp1, "O jogo comecou!");
     strcpy(disp2, "Insira cartao");
@@ -434,7 +435,7 @@ void StartState() {
     strcpy(disp2, "");
     tmp_input = 0;
     tmp_toggle = '$';
-  } 
+  }
   else if (state == ST_SALARY) {
     tmp_input = 0;
     strcpy(disp1, "Digite salario");
@@ -483,7 +484,7 @@ void GotCard(int card) {
 
 void GotKey(char key) {
   int t;
-  // key: '0'- '9', 'A'-'D', '*', '#'
+  // key: '0'-'9', 'A'-'D', '*', '#'
 
   if (state == ST_INIT) {
     if (key == YEARS) {
@@ -495,8 +496,8 @@ void GotKey(char key) {
     if (IS_NUMERIC(key)) {
       APPEND(tmp_input, NUMERIC_VAL(key));
       sprintf(disp1, "Anos: %lld", tmp_input);
-    } 
-    
+    }
+
     if (key == ENTER || tmp_input > 100) {
       total_anos = tmp_input;
       GO_STATE(ST_BEFORE_GAME);
@@ -661,7 +662,7 @@ void GotKey(char key) {
       GO_STATE(ST_TURN);
     }
   }
-  
+
   else if (state == ST_LOTTERY_WAIT) {
     if (key == LOTTERY || key == ENTER || key == SPIN) {
       val_lottery += rand_interval(ano_atual*10, ano_atual*50)*1000;
@@ -696,8 +697,6 @@ void main() {
 
   // liga LCD
   Lcd_Init();
-  Lcd_Cmd(_LCD_CURSOR_OFF);
-  Lcd_Cmd(_LCD_CLEAR);
   delay_ms(10);
 
   // liga teclado
@@ -710,9 +709,21 @@ void main() {
   // liga RFID
   Soft_SPI_Init();
   MFRC522_Init();
-  
-  strcpy(disp1, "Aperte YEARS (9)");
 
+  // liga timer
+  INTCON.GIE = 1;       // global interrupt enable
+  INTCON.PEIE = 1;      // peripheral interrupt enable
+  INTCON.TMR0IF = 0;    // clear timer0 overflow interrupt flag
+  INTCON.TMR0IE = 1;    // enable the timer0 by setting TRM0IE flag
+  T0CON.T08BIT = 0;     // 16 bits
+  T0CON.T0CS = 0;
+  T0CON.PSA = 1;
+  TMR0H = 0x3c;         // 0xD8EF = 25ms
+  TMR0L = 0xaf;
+  T0CON.TMR0ON = 1;
+
+  strcpy(disp1, "Aperte YEARS (9)");
+  
   do {
     if(!tratou_key) {
       tratou_key = 1;
@@ -735,11 +746,7 @@ void main() {
       }
     }
 
-    Lcd_Cmd(_LCD_CLEAR);
-    Lcd_Out(1, 1, disp1);
-    Lcd_Out(2, 1, disp2);
-
-    delay_ms(33);
+    delay_ms(5);
   } while(1);
 }
 
@@ -807,9 +814,23 @@ void interrupt() {
     PORTC.F0 = PORTC.F1 = PORTC.F2 = PORTC.F3 = 1;
 
     tratou_key = 0;
+    
+    ENABLE_KB();
 
     // clear flag
-    ENABLE_KB();
     INTCON.INT0IF = 0;
+  }
+
+  // timer 50ms interrupt
+  else if (INTCON.TMR0IF  == 1) {
+    TMR0H = 0x3c;
+    TMR0L = 0xaf;
+
+    Lcd_Cmd(_LCD_CURSOR_OFF);
+    Lcd_Cmd(_LCD_CLEAR);
+    Lcd_Out(1, 1, disp1);
+    Lcd_Out(2, 1, disp2);
+
+    INTCON.TMR0IF = 0;
   }
 }
