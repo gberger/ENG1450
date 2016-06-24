@@ -695,10 +695,11 @@ void main() {
 
   ADCON1 = 0X06;
 
-  TRISB = 255;         // entrada
-  TRISC = 0b11110000;  // alto entrada, baixo saida
+  TRISB = 0b11111101;
+  PORTB.F1 = 0;
+  TRISC = 0b11110000;
   PORTC = 0;
-  TRISD = 0;           // saida
+  TRISD = 0;
 
   // liga LCD
   Lcd_Init();
@@ -719,14 +720,17 @@ void main() {
   strcpy(disp1, "Aperte YEARS (9)");
 
   do {
+    PORTB.F1 = 0;
     if(!tratou_key) {
       tratou_key = 1;
+      PORTB.F1 = 1;
       GotKey(tecla);
     }
 
     if (rfid_enabled) {
       if (MFRC522_isCard(&TagType)) {
         if (MFRC522_ReadCardSerial(&UID)) {
+          PORTB.F1 = 1;
           if (UID[0] == PLAYER1) {
             GotCard(0);
           } else if (UID[0] == PLAYER2) {
