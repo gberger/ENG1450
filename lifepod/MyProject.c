@@ -177,8 +177,8 @@ int __muda_tmp;
 #define MUDA_LP(antigo, novo) antigo = (novo);
 
 void mostra_stats(int n) {
-  sprintf(disp1, "$%lld", saldos[n]);
-  sprintf(disp2, "LP %lld", pontos[n]);
+  sprintf(disp1, "$%lld   jog%d", saldos[n], current_player+1);
+  sprintf(disp2, "LP %lld ano%d", pontos[n], ano_atual);
 }
 
 void mostra_preco_casa() {
@@ -190,6 +190,21 @@ void mostra_preco_casa() {
     sprintf(disp1, "%s: -$%lld",
                  casas_nomes[current_casa],
                  casas_precos[current_casa]);
+  }
+
+  if (CASAS_PEQ[current_player] == 0 && CASAS_MED[current_player] == 0 && CASAS_GRA[current_player] == 0) {
+    sprintf(disp2, "Possui: NENHUM");
+  } else {
+    strcpy(disp2, "Possui: ");
+    if (CASAS_PEQ[current_player]) {
+      strcat(disp2, "P ");
+    }
+    if (CASAS_MED[current_player]) {
+      strcat(disp2, "M ");
+    }
+    if (CASAS_GRA[current_player]) {
+      strcat(disp2, "G");
+    }
   }
 }
 
@@ -204,10 +219,28 @@ void mostra_preco_carro() {
                  carros_nomes[current_carro],
                  carros_precos[current_carro]);
   }
+  
+  if (CARROS_ECON[current_player] == 0 && CARROS_LUXO[current_player] == 0) {
+    sprintf(disp2, "Possui: NENHUM");
+  } else if (CARROS_ECON[current_player] == 1 && CARROS_LUXO[current_player] == 0) {
+    sprintf(disp2, "Possui: ECON");
+  } else if (CARROS_ECON[current_player] == 0 && CARROS_LUXO[current_player] == 1) {
+    sprintf(disp2, "Possui: LUXO");
+  } else {
+    sprintf(disp2, "Possui: AMBOS");
+  }
 }
 
 void mostra_bebes() {
   sprintf(disp1, "# bebes: %d + %d", bebes[current_player], current_bebes);
+}
+
+void mostra_add_sub() {
+  if (tmp_toggle == '$') {
+    sprintf(disp2, "$ %lld", tmp_input);
+  } else {
+    sprintf(disp2, "LP %lld", tmp_input);
+  }
 }
 
 
@@ -329,6 +362,7 @@ void StartState() {
   } 
   else if (state == ST_BEFORE_GAME) {
     strcpy(disp1, "O jogo comecou!");
+    strcpy(disp2, "Insira cartao");
   }
   else if (state == ST_TURN) {
     mostra_stats(current_player);
@@ -353,12 +387,15 @@ void StartState() {
     mostra_bebes();
   }
   else if (state == ST_ADD_SUB) {
+    strcpy(disp1, "Valor add/sub");
+    strcpy(disp2, "");
     tmp_input = 0;
     tmp_toggle = '$';
   } 
   else if (state == ST_SALARY) {
     tmp_input = 0;
     strcpy(disp1, "Digite salario");
+    strcpy(disp2, "");
   }
   else if (state == ST_LOTTERY) {
     val_lottery = rand_interval(ano_atual*10, ano_atual*50)*1000;
@@ -371,7 +408,8 @@ void StartState() {
   }
   else if (state == ST_END) {
     winner = calculate_winner();
-    sprintf(disp1, "WIN %d LP%lld", winner+1, pontos[winner]);
+    sprintf(disp1, "GANHADOR %d", winner+1);
+    sprintf(disp2, "LP %lld", pontos[winner]);
   }
 }
 
@@ -413,7 +451,9 @@ void GotKey(char key) {
     if (IS_NUMERIC(key)) {
       APPEND(tmp_input, NUMERIC_VAL(key));
       sprintf(disp1, "Anos: %lld", tmp_input);
-    } else if (key == ENTER) {
+    } 
+    
+    if (key == ENTER || tmp_input > 100) {
       total_anos = tmp_input;
       GO_STATE(ST_BEFORE_GAME);
     }
@@ -530,14 +570,18 @@ void GotKey(char key) {
   else if (state == ST_ADD_SUB) {
     if (IS_NUMERIC(key)) {
       APPEND(tmp_input, NUMERIC_VAL(key));
+      mostra_add_sub();
     }
     else if (key == TOGGLE_MM) {
       tmp_input = -tmp_input;
+      mostra_add_sub();
     }
     else if (key == TOGGLE_SLP) {
       tmp_toggle = (tmp_toggle == '$' ? 'L' : '$');
+      mostra_add_sub();
     }
     else if (key == ENTER) {
+      mostra_stats(current_player);
       if (tmp_toggle == '$') {
         MUDA_S(saldos[current_player], saldos[current_player] + tmp_input);
       } else {
