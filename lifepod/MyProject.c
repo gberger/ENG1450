@@ -181,6 +181,11 @@ void mostra_stats(int n) {
   sprintf(disp2, "LP %lld ano%d", pontos[n], ano_atual);
 }
 
+void mostra_turno(int n, int t) {
+  sprintf(disp1, "$%lld   jog%d", saldos[n], current_player+1);
+  sprintf(disp2, "LP %lld ->%d", pontos[n], t);
+}
+
 void mostra_preco_casa() {
   if (casas[current_casa][current_player]) {
     sprintf(disp1, "%s: +$%lld",
@@ -232,7 +237,7 @@ void mostra_preco_carro() {
 }
 
 void mostra_bebes() {
-  sprintf(disp1, "# bebes: %d + %d", bebes[current_player], current_bebes);
+  sprintf(disp1, "# bebes: %d + %d", (int)bebes[current_player], current_bebes);
 }
 
 void mostra_add_sub() {
@@ -441,7 +446,7 @@ void StartState() {
     strcpy(disp2, "");
   }
   else if (state == ST_LOTTERY) {
-    val_lottery = rand_interval(ano_atual*10, ano_atual*50)*1000;
+    val_lottery = ((long)rand_interval(ano_atual*10, ano_atual*50))*1000;
     strcpy(disp1, "Prontos?!");
     sprintf(disp2, "Valor: $%lld", val_lottery);
   }
@@ -510,14 +515,15 @@ void GotKey(char key) {
         ano_atual++;
         girou[0] = girou[1] = girou[2] = girou[3] = 0;
       }
-      if (ano_atual >= total_anos) {
+      
+      if (ano_atual > total_anos) {
         GO_STATE(ST_END);
       } else if (!girou[current_player]) {
         // pode girar
         girou[current_player] = 1;
         jogando[current_player] = 1;
         t = turno(current_player);
-        mostra_stats(current_player);
+        mostra_turno(current_player, t);
         disp2[15] = t + '0';
       }
     }
@@ -525,25 +531,25 @@ void GotKey(char key) {
       t = gira_chance();
       sprintf(disp1, "Sorteio: %d", t);
     }
-    else if (key == MARRIAGE) {
+    else if (key == MARRIAGE && girou[current_player]) {
       GO_STATE(ST_MARRIAGE);
     }
-    else if (key == HOUSE) {
+    else if (key == HOUSE && girou[current_player]) {
       GO_STATE(ST_HOUSE);
     }
-    else if (key == CAR) {
+    else if (key == CAR && girou[current_player]) {
       GO_STATE(ST_CAR);
     }
-    else if (key == BABY) {
+    else if (key == BABY && girou[current_player]) {
       GO_STATE(ST_BABY);
     }
     else if (key == TOGGLE_SLP || key == TOGGLE_MM) {
       GO_STATE(ST_ADD_SUB);
     }
-    else if (key == SALARY) {
+    else if (key == SALARY && girou[current_player]) {
       GO_STATE(ST_SALARY);
     }
-    else if (key == LOTTERY) {
+    else if (key == LOTTERY && girou[current_player]) {
       GO_STATE(ST_LOTTERY);
     }
   }
@@ -710,7 +716,6 @@ void main() {
   // liga RFID
   Soft_SPI_Init();
   MFRC522_Init();
-
   strcpy(disp1, "Aperte YEARS (9)");
 
   do {
@@ -738,8 +743,8 @@ void main() {
     Lcd_Cmd(_LCD_CLEAR);
     Lcd_Out(1, 1, disp1);
     Lcd_Out(2, 1, disp2);
-
-    delay_ms(33);
+    
+    delay_ms(10);
   } while(1);
 }
 
