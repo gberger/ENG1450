@@ -108,20 +108,21 @@ char rfid_enabled = 1;
 // state -- ver defines abaixo
 char state = 0;
 
-#define ST_INIT        0
-#define ST_SET_YEARS   1
-#define ST_BEFORE_GAME 2
-#define ST_TURN        3
-#define ST_SPIN        4
-#define ST_CHANCE      5
-#define ST_MARRIAGE    6
-#define ST_HOUSE       7
-#define ST_CAR         8
-#define ST_BABY        9
-#define ST_ADD_SUB     10
-#define ST_SALARY      11
-#define ST_LOTTERY     12
-#define ST_END         13
+#define ST_INIT         0
+#define ST_SET_YEARS    1
+#define ST_BEFORE_GAME  2
+#define ST_TURN         3
+#define ST_SPIN         4
+#define ST_CHANCE       5
+#define ST_MARRIAGE     6
+#define ST_HOUSE        7
+#define ST_CAR          8
+#define ST_BABY         9
+#define ST_ADD_SUB      10
+#define ST_SALARY       11
+#define ST_LOTTERY      12
+#define ST_LOTTERY_WAIT 13
+#define ST_END          14
 
 #define GO_STATE(S) state = S; StartState();
 
@@ -141,6 +142,7 @@ char *carros_nomes[2] = {"Econ", "Luxo"};
 int current_bebes = 0;
 
 long val_lottery = 0;
+int num_lottery = -1;
 
 
 // Estado do jogo
@@ -175,7 +177,8 @@ int __muda_tmp;
 #define MUDA_LP(antigo, novo) antigo = (novo);
 
 void mostra_stats(int n) {
-  sprintf(disp1, "$%lld LP%lld", saldos[n], pontos[n]);
+  sprintf(disp1, "$%lld", saldos[n]);
+  sprintf(disp2, "LP %lld", pontos[n]);
 }
 
 void mostra_preco_casa() {
@@ -204,7 +207,7 @@ void mostra_preco_carro() {
 }
 
 void mostra_bebes() {
-  sprintf(disp1, "# bebes: %d", current_bebes);
+  sprintf(disp1, "# bebes: %d + %d", bebes[current_player], current_bebes);
 }
 
 
@@ -358,18 +361,23 @@ void StartState() {
     strcpy(disp1, "Digite salario");
   }
   else if (state == ST_LOTTERY) {
-    gira_roleta(0);
+    val_lottery = rand_interval(ano_atual*10, ano_atual*50)*1000;
+    strcpy(disp1, "Prontos?!");
+    sprintf(disp2, "Valor: $%lld", val_lottery);
+  }
+  else if (state == ST_LOTTERY_WAIT) {
+    sprintf(disp1, "No. sorteado: %d", num_lottery);
+    sprintf(disp2, "Valor: $%lld", val_lottery);
   }
   else if (state == ST_END) {
     winner = calculate_winner();
-    strcpy(disp1, "WIN %d LP%lld", winner+1, pontos[winner]));
+    sprintf(disp1, "WIN %d LP%lld", winner+1, pontos[winner]);
   }
 }
 
 
 void GotCard(int card) {
   // card: 0-3
-  disp2[2] = card + '0';
 
   if (state == ST_BEFORE_GAME) {
     if (card == 0) {
@@ -384,7 +392,7 @@ void GotCard(int card) {
     GO_STATE(ST_TURN);
   }
 
-  else if (state == ST_LOTTERY) {
+  else if (state == ST_LOTTERY_WAIT) {
     MUDA_S(saldos[card], saldos[card] + val_lottery);
     val_lottery = 0;
     GO_STATE(ST_TURN);
@@ -394,7 +402,6 @@ void GotCard(int card) {
 void GotKey(char key) {
   int t;
   // key: '0'- '9', 'A'-'D', '*', '#'
-  disp2[0] = key;
 
   if (state == ST_INIT) {
     if (key == YEARS) {
@@ -558,8 +565,20 @@ void GotKey(char key) {
   }
 
   else if (state == ST_LOTTERY) {
-    if (key == LOTTERY) {
-      t = gira_roleta(0);
+    if (key == LOTTERY || key == ENTER || key == SPIN) {
+      num_lottery = gira_roleta(0);
+      GO_STATE(ST_LOTTERY_WAIT);
+    }
+    else if (key == UNDO) {
+      GO_STATE(ST_TURN);
+    }
+  }
+  
+  else if (state == ST_LOTTERY_WAIT) {
+    if (key == LOTTERY || key == ENTER || key == SPIN) {
+      val_lottery += rand_interval(ano_atual*10, ano_atual*50)*1000;
+      num_lottery = gira_roleta(0);
+      GO_STATE(ST_LOTTERY_WAIT);
     }
     else if (key == UNDO) {
       GO_STATE(ST_TURN);
@@ -603,6 +622,8 @@ void main() {
   // liga RFID
   Soft_SPI_Init();
   MFRC522_Init();
+  
+  strcpy(disp1, "Aperte YEARS (9)");
 
   do {
     if(!tratou_key) {
@@ -625,10 +646,6 @@ void main() {
         }
       }
     }
-
-    disp2[1] = state + '0';
-    
-    disp2[10] = ano_atual + '0';
 
     Lcd_Cmd(_LCD_CLEAR);
     Lcd_Out(1, 1, disp1);
