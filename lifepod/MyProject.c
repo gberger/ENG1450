@@ -450,7 +450,7 @@ void StartState() {
     sprintf(disp2, "Valor: $%lld", val_lottery);
   }
   else if (state == ST_END) {
-    calculate_points(rand_interval(1, ));
+    sprintf(disp1, "Fim de jogo!");
     winner = calculate_winner();
     sprintf(disp1, "GANHADOR %d", winner+1);
     sprintf(disp2, "LP %lld", pontos[winner]);
