@@ -146,7 +146,7 @@ long val_lottery = 0;
 // Estado do jogo
 int total_anos;
 int ano_atual = 0;
-char num_jogadores = 0;
+char jogando[4] = {0, 0, 0, 0};
 char girou[4] = {0, 0, 0, 0};
 int current_player = -1;
 int winner;
@@ -277,19 +277,34 @@ int turno(int n) {
 }
 
 void casar(int n) {
-  // Ganha 1000 de cada player
-  saldos[0] -= 1000;
-  saldos[1] -= 1000;
-  saldos[2] -= 1000;
-  saldos[3] -= 1000;
-  saldos[current_player] += 1000;
-  MUDA_S(saldos[current_player], saldos[current_player]+3000);
-
-  // Ganha 3000 LP
-  MUDA_LP(pontos[current_player], pontos[current_player]+3000);
+  int i;
+  long ganho = 0;
+  if (!casados[current_player]) {
+    // Casar, ganha 1000 de cada player
+    for (i = 0; i < 4; i++) {
+      if (jogando[i] && i != current_player) {
+        saldos[i] -= 1000;
+        ganho += 1000;
+      }
+    }
+  }
+  else {
+    // Aniversario, ganha 500 de cada player
+    for (i = 0; i < 4; i++) {
+      if (jogando[i] && i != current_player) {
+        saldos[i] -= 500;
+        ganho += 500;
+      }
+    }
+  }
+  // Ganha o pot
+  MUDA_S(saldos[current_player], saldos[current_player] + ganho);
 
   // Muda variavel
   casados[current_player] = 1;
+  
+  // Ganha 3000 LP
+  MUDA_LP(pontos[current_player], pontos[current_player]+3000);
 }
 
 long calculate_points(int n) {
@@ -314,6 +329,13 @@ void StartState() {
   }
   else if (state == ST_TURN) {
     mostra_stats(current_player);
+  }
+  else if (state == ST_MARRIAGE) {
+    if (casados[current_player]) {
+      strcpy(disp1, "Aniv Casamento?");
+    } else {
+      strcpy(disp1, "Casamento?");
+    }
   }
   else if (state == ST_HOUSE) {
     current_casa = 0;
@@ -402,6 +424,7 @@ void GotKey(char key) {
       } else if (!girou[current_player]) {
         // pode girar
         girou[current_player] = 1;
+        jogando[current_player] = 1;
         t = turno(current_player);
         mostra_stats(current_player);
         disp2[15] = t + '0';
@@ -411,9 +434,8 @@ void GotKey(char key) {
       t = gira_chance();
       sprintf(disp1, "Sorteio: %d", t);
     }
-    else if (key == MARRIAGE && !casados[current_player]) {
-      strcpy(disp1, "Casamento?");
-      state = ST_MARRIAGE;
+    else if (key == MARRIAGE) {
+      GO_STATE(ST_MARRIAGE);
     }
     else if (key == HOUSE) {
       GO_STATE(ST_HOUSE);
