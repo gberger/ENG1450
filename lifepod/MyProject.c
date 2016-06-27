@@ -159,8 +159,11 @@ long pontos[4] = {0, 0, 0, 0};
 long salarios[4] = {5000, 5000, 5000, 5000};
 char casados[4] = {0, 0, 0, 0};
 char bebes[4] = {0, 0, 0, 0};
-char carros[2][4] = {{0,0,0,0}, {0,0,0,0}};
-char casas[3][4] = {{0,0,0,0}, {0,0,0,0}, {0,0,0,0}};
+long carros[2][4] = {{0,0,0,0}, {0,0,0,0}};
+long casas[3][4] = {{0,0,0,0}, {0,0,0,0}, {0,0,0,0}};
+
+#define PCT_CARRO 0.90
+#define PCT_CASA 1.06
 
 #define CASAS_PEQ casas[0]
 #define CASAS_MED casas[1]
@@ -198,8 +201,6 @@ void anima_s(long antigo, long novo) {
   delay_ms(50);
   PORTB.F1 = 0;
   delay_ms(550);
-  strcpy(disp1, "");
-  strcpy(disp2, "");
 }
 
 void anima_lp(long antigo, long novo) {
@@ -222,8 +223,6 @@ void anima_lp(long antigo, long novo) {
   delay_ms(50);
   PORTB.F1 = 0;
   delay_ms(450);
-  strcpy(disp1, "");
-  strcpy(disp2, "");
 }
 
 int __muda_tmp;
@@ -328,6 +327,8 @@ int gira_chance() {
  ****************/
 
 int turno(int n) {
+  int i, j;
+
   // Subtrai $ juros
   if (saldos[n] < 0) {
     MUDA_S(saldos[n], saldos[n] * 1.1);
@@ -365,6 +366,16 @@ int turno(int n) {
   if (CARROS_LUXO[n] > 0) {
     MUDA_LP(pontos[n], pontos[n] + 200);
     MUDA_S(saldos[n], saldos[n] - 5000 * CARROS_LUXO[n]);
+  }
+  
+  // Valoriza casas
+  for (i = 0; i < 3; i++) {
+    casas[i][n] *= PCT_CASA;
+  }
+  
+  // Desvaloriza carros
+  for (i = 0; i < 2; i++) {
+    carros[i][n] *= PCT_CARRO;
   }
 
   // Gira a roleta
@@ -408,25 +419,25 @@ long calculate_points(int n) {
   // vende casas
   if (CASAS_PEQ[n]) {
     CASAS_PEQ[n] = 0;
-    MUDA_S(saldos[n], saldos[n] + casas_precos[0]);
+    MUDA_S(saldos[n], saldos[n] + casas[0][n]);
   }
   if (CASAS_MED[n]) {
     CASAS_MED[n] = 0;
-    MUDA_S(saldos[n], saldos[n] + casas_precos[1]);
+    MUDA_S(saldos[n], saldos[n] + casas[1][n]);
   }
   if (CASAS_GRA[n]) {
     CASAS_GRA[n] = 0;
-    MUDA_S(saldos[n], saldos[n] + casas_precos[2]);
+    MUDA_S(saldos[n], saldos[n] + casas[2][n]);
   }
 
   // vende carros
   if (CARROS_ECON[n]) {
     CARROS_ECON[n] = 0;
-    MUDA_S(saldos[n], saldos[n] + carros_precos[0]);
+    MUDA_S(saldos[n], saldos[n] + carros[0][n]);
   }
   if (CARROS_LUXO[n]) {
     CARROS_LUXO[n] = 0;
-    MUDA_S(saldos[n], saldos[n] + carros_precos[1]);
+    MUDA_S(saldos[n], saldos[n] + carros[1][n]);
   }
 
   // dinheiro vira LP
@@ -625,10 +636,16 @@ void GotKey(char key) {
     }
     else if (key == ENTER) {
       int mult = casas[current_casa][current_player] ? 1 : -1;
-      long preco = casas_precos[current_casa];
+      long preco = casas[current_casa][current_player] 
+           ? casas[current_casa][current_player]
+           : casas_precos[current_casa];
       long delta = mult * preco;
       MUDA_S(saldos[current_player], saldos[current_player] + delta);
-      casas[current_casa][current_player] = !casas[current_casa][current_player];
+      if (casas[current_casa][current_player]) {
+        casas[current_casa][current_player] = preco;
+      } else {
+        casas[current_casa][current_player] = 0;
+      }
       GO_STATE(ST_TURN);
     }
     else if (key == UNDO) {
@@ -644,10 +661,16 @@ void GotKey(char key) {
     }
     else if (key == ENTER) {
       int mult = carros[current_carro][current_player] ? 1 : -1;
-      long preco = carros_precos[current_carro];
+      long preco = carros[current_carro][current_player]
+           ? carros[current_carro][current_player]
+           : carros_precos[current_carro];
       long delta = mult * preco;
       MUDA_S(saldos[current_player], saldos[current_player] + delta);
-      carros[current_carro][current_player] = !carros[current_carro][current_player];
+      if (carros[current_carro][current_player]) {
+        carros[current_carro][current_player] = preco;
+      } else {
+        carros[current_carro][current_player] = 0;
+      }
       GO_STATE(ST_TURN);
     }
     else if (key == UNDO) {
@@ -739,10 +762,8 @@ void GotKey(char key) {
  ****************/
 
 void main() {
-  char tmp;
-  char i, size;
+  char size;
   unsigned TagType;
-  char msg[12];
   char UID[6];
 
   ratio_lp_money = rand_interval(80, 120);
