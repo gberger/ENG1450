@@ -172,9 +172,63 @@ char casas[3][4] = {{0,0,0,0}, {0,0,0,0}, {0,0,0,0}};
 /* Mostradores
  ****************/
 
+void refresh_lcd() {
+  Lcd_Cmd(_LCD_CLEAR);
+  Lcd_Out(1, 1, disp1);
+  Lcd_Out(2, 1, disp2);
+}
+
+void anima_s(long antigo, long novo) {
+  int i;
+  long delta = novo - antigo;
+  long delta10 = delta/10;
+  if (antigo == novo) return;
+  sprintf(disp2, "Jogador %d", current_player+1);
+  for (i = 1; i < 10; i++) {
+    sprintf(disp1, "$%lld", antigo + delta10*i);
+    refresh_lcd();
+    PORTB.F1 = 1;
+    delay_ms(50);
+    PORTB.F1 = 0;
+    delay_ms(50);
+  }
+  sprintf(disp1, "$%lld", novo);
+  refresh_lcd();
+  PORTB.F1 = 1;
+  delay_ms(50);
+  PORTB.F1 = 0;
+  delay_ms(550);
+  strcpy(disp1, "");
+  strcpy(disp2, "");
+}
+
+void anima_lp(long antigo, long novo) {
+  int i;
+  long delta = novo - antigo;
+  long delta10 = delta/10;
+  if (antigo == novo) return;
+  sprintf(disp1, "Jogador %d", current_player+1);
+  for (i = 1; i < 10; i++) {
+    sprintf(disp2, "LP%lld", antigo + delta10*i);
+    refresh_lcd();
+    PORTB.F1 = 1;
+    delay_ms(50);
+    PORTB.F1 = 0;
+    delay_ms(50);
+  }
+  sprintf(disp2, "LP%lld", novo);
+  refresh_lcd();
+  PORTB.F1 = 1;
+  delay_ms(50);
+  PORTB.F1 = 0;
+  delay_ms(450);
+  strcpy(disp1, "");
+  strcpy(disp2, "");
+}
+
 int __muda_tmp;
-#define MUDA_S(antigo, novo)  antigo = (novo);
-#define MUDA_LP(antigo, novo) antigo = (novo);
+#define MUDA_S(antigo, novo)  anima_s(antigo, novo); antigo = (novo);
+#define MUDA_LP(antigo, novo) anima_lp(antigo, novo); antigo = (novo);
 
 void mostra_stats(int n) {
   sprintf(disp1, "$%lld   jog%d", saldos[n], current_player+1);
@@ -744,9 +798,7 @@ void main() {
       }
     }
 
-    Lcd_Cmd(_LCD_CLEAR);
-    Lcd_Out(1, 1, disp1);
-    Lcd_Out(2, 1, disp2);
+    refresh_lcd();
     
     delay_ms(10);
   } while(1);
